@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>La FFT como Matriz de Cambio de Base</title>
+    <!-- MathJax para renderizar fórmulas matemáticas -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-secondary: #818cf8;
+            --border: #334155;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+        }
+
+        header {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 3rem 1.5rem;
+            text-align: center;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            background: linear-gradient(to right, var(--accent), var(--accent-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        header p {
+            color: var(--text-muted);
+            max-width: 700px;
+            margin: 1rem auto 0;
+            font-size: 1.1rem;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 2rem auto;
+            padding: 0 1.5rem;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+        }
+
+        h2 {
+            color: var(--accent);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0.5rem;
+            margin-top: 0;
+        }
+
+        .math-block {
+            background-color: #0f172a;
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            border-left: 4px solid var(--accent-secondary);
+            margin: 1.5rem 0;
+        }
+
+        /* Controles interactivos */
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            align-items: center;
+        }
+
+        button, select {
+            background-color: #0f172a;
+            color: var(--text-main);
+            border: 1px solid var(--accent);
+            padding: 0.6rem 1.2rem;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background-color: var(--accent);
+            color: #0f172a;
+            font-weight: bold;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            .grid-2 { grid-template-columns: 1fr; }
+        }
+
+        table.matrix-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: center;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+
+        table.matrix-table td {
+            border: 1px solid var(--border);
+            padding: 0.6rem 0.3rem;
+            transition: background-color 0.2s;
+        }
+
+        table.matrix-table td:hover {
+            background-color: rgba(56, 189, 248, 0.2);
+        }
+
+        canvas {
+            background-color: #0f172a;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            width: 100%;
+            height: auto;
+        }
+
+        .signal-inputs {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+
+        .signal-inputs input {
+            width: 60px;
+            padding: 0.5rem;
+            background: #0f172a;
+            border: 1px solid var(--border);
+            color: white;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            border-top: 1px solid var(--border);
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>La Transformada de Fourier como Cambio de Base</h1>
+    <p>Una perspectiva desde el Álgebra Lineal: de la multiplicación matricial \(O(N^2)\) a la factorización rápida \(O(N \log N)\).</p>
+</header>
+
+<div class="container">
+
+    <!-- SECCIÓN 1: TEORÍA -->
+    <div class="card">
+        <h2>1. El Concepto Geométrico: Cambio de Base</h2>
+        <p>
+            Una señal discreta de \(N\) muestras es simplemente un vector \(\mathbf{x} \in \mathbb{C}^N\) expresado en la <strong>base canónica</strong> (el dominio del tiempo), donde cada coordenada representa el valor en un instante \(n\).
+        </p>
+        <p>
+            Aplicar la Transformada Discreta de Fourier (DFT) es realizar un <strong>cambio de base</strong> hacia una base ortogonal de frecuencias puras (exponenciales complejas). Esta transformación lineal se representa mediante la matriz de Vandermonde \(F_N\):
+        </p>
+        <div class="math-block">
+            $$\mathbf{X} = F_N \mathbf{x}$$
+            $$\text{donde } (F_N)_{k,n} = \omega_N^{kn} = e^{-i \frac{2\pi}{N} kn}, \quad k, n \in \{0, 1, \dots, N-1\}$$
+        </div>
+        <p>
+            Cada fila \(k\) de \(F_N\) es un vector base de frecuencia \(k\). Multiplicar \(F_N\) por \(\mathbf{x}\) calcula el producto interno (proyección) de nuestra señal sobre cada frecuencia pura.
+        </p>
+    </div>
+
+    <!-- SECCIÓN 2: EXPLORADOR DE LA MATRIZ -->
+    <div class="card">
+        <h2>2. Explorador de la Matriz de Fourier \(F_N\)</h2>
+        <p>Selecciona la dimensión \(N\) del espacio vectorial para visualizar los elementos \(\omega_N^{kn}\) de la matriz de cambio de base y la posición de las raíces de la unidad en el plano complejo.</p>
+        
+        <div class="controls">
+            <label for="dimensionSelect"><strong>Dimensión \(N\):</strong></label>
+            <select id="dimensionSelect" onchange="updateMatrixView()">
+                <option value="2">N = 2</option>
+                <option value="4" selected>N = 4</option>
+                <option value="8">N = 8</option>
+            </select>
+        </div>
+
+        <div class="grid-2">
+            <div>
+                <h3>Matriz \(F_N\) (Valores Complejos)</h3>
+                <div id="matrixContainer" style="overflow-x: auto;"></div>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem;">
+                    *Nota la simetría: \(F_N^T = F_N\) y sus columnas son ortogonales (\(F_N^* F_N = N \cdot I\)).
+                </p>
+            </div>
+            <div>
+                <h3>Raíces \(N\)-ésimas de la Unidad (\(\omega_N^k\))</h3>
+                <canvas id="unitCircleCanvas" width="350" height="350"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- SECCIÓN 3: POR QUÉ ES RÁPIDA LA FFT -->
+    <div class="card">
+        <h2>3. El Secreto de la FFT: Factorización de Matrices Dispersas</h2>
+        <p>
+            Multiplicar directamente por la matriz densa \(F_N\) requiere \(N^2\) operaciones. La <strong>Transformada Rápida de Fourier (FFT)</strong> de Cooley-Tukey descubre que \(F_N\) no es una matriz cualquiera: se puede factorizar en el producto de matrices muy dispersas (llenas de ceros) separando índices pares e impares mediante una matriz de permutación \(P_N\):
+        </p>
+        <div class="math-block">
+            $$F_N = \begin{pmatrix} I_{N/2} & D_{N/2} \\ I_{N/2} & -D_{N/2} \end{pmatrix} \begin{pmatrix} F_{N/2} & 0 \\ 0 & F_{N/2} \end{pmatrix} P_N$$
+        </div>
+        <p>
+            Donde \(D_{N/2} = \text{diag}(1, \omega_N^1, \omega_N^2, \dots, \omega_N^{N/2 - 1})\) contiene los llamados <em>twiddle factors</em> (factores de giro). Al aplicar esto recursivamente, reducimos la complejidad de \(O(N^2)\) a \(O(N \log_2 N)\).
+        </p>
+    </div>
+
+    <!-- SECCIÓN 4: LABORATORIO DE CAMBIO DE BASE -->
+    <div class="card">
+        <h2>4. Laboratorio Interactivo: De Tiempo a Frecuencia (\(N=8\))</h2>
+        <p>Modifica las coordenadas del vector \(\mathbf{x}\) en la base del tiempo o elige una señal predefinida para observar sus nuevas coordenadas \(\mathbf{X} = F_8 \mathbf{x}\) en la base de frecuencias.</p>
+        
+        <div class="controls">
+            <button onclick="setPreset('impulse')">Impulso \(\delta[n]\)</button>
+            <button onclick="setPreset('dc')">Constante (DC)</button>
+            <button onclick="setPreset('cosine')">Coseno puro (\(k=1\))</button>
+            <button onclick="setPreset('mixed')">Suma de frecuencias</button>
+        </div>
+
+        <div class="signal-inputs" id="signalInputs"></div>
+
+        <div class="grid-2">
+            <div>
+                <h3>Base Canónica: Tiempo \(\mathbf{x}[n]\)</h3>
+                <canvas id="timeCanvas" width="400" height="220"></canvas>
+            </div>
+            <div>
+                <h3>Base de Fourier: Magnitud \(|\mathbf{X}[k]|\)</h3>
+                <canvas id="freqCanvas" width="400" height="220"></canvas>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<footer>
+    <p>Proyecto educativo sobre Álgebra Lineal y Procesamiento de Señales • Alojado en GitHub Pages</p>
+</footer>
+
+<script>
+    // --- LÓGICA DE NÚMEROS COMPLEJOS Y FFT ---
+    function complex(re, im) {
+        return { re: re, im: im };
+    }
+
+    function formatComplex(c) {
+        const re = Math.abs(c.re) < 1e-10 ? 0 : Number(c.re.toFixed(2));
+        const im = Math.abs(c.im) < 1e-10 ? 0 : Number(c.im.toFixed(2));
+        if (im === 0) return `${re}`;
+        if (re === 0) return im === 1 ? 'i' : (im === -1 ? '-i' : `${im}i`);
+        const sign = im > 0 ? '+' : '-';
+        const absIm = Math.abs(im) === 1 ? 'i' : `${Math.abs(im)}i`;
+        return `${re}${sign}${absIm}`;
+    }
+
+    // --- SECCIÓN 2: MATRIZ Y CÍRCULO UNITARIO ---
+    function updateMatrixView() {
+        const N = parseInt(document.getElementById('dimensionSelect').value);
+        const container = document.getElementById('matrixContainer');
+        
+        let html = '<table class="matrix-table">';
+        for (let k = 0; k < N; k++) {
+            html += '<tr>';
+            for (let n = 0; n < N; n++) {
+                const angle = (-2 * Math.PI * k * n) / N;
+                const val = complex(Math.cos(angle), Math.sin(angle));
+                html += `<td title="k=${k}, n=${n}">${formatComplex(val)}</td>`;
+            }
+            html += '</tr>';
+        }
+        html += '</table>';
+        container.innerHTML = html;
+
+        drawUnitCircle(N);
+    }
+
+    function drawUnitCircle(N) {
+        const canvas = document.getElementById('unitCircleCanvas');
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width;
+        const h = canvas.height;
+        const cx = w / 2;
+        const cy = h / 2;
+        const r = 120;
+
+        ctx.clearRect(0, 0, w, h);
+
+        // Ejes
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(20, cy); ctx.lineTo(w - 20, cy);
+        ctx.moveTo(cx, 20); ctx.lineTo(cx, h - 20);
+        ctx.stroke();
+
+        // Círculo
+        ctx.strokeStyle = '#818cf8';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+        ctx.stroke();
+
+        // Raíces de la unidad
+        for (let k = 0; k < N; k++) {
+            const angle = (-2 * Math.PI * k) / N;
+            const x = cx + r * Math.cos(angle);
+            const y = cy - r * Math.sin(angle); // Y invertido en canvas
+
+            // Vector desde el origen
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(x, y);
+            ctx.stroke();
+
+            // Punto
+            ctx.fillStyle = '#38bdf8';
+            ctx.beginPath();
+            ctx.arc(x, y, 6, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Etiqueta
+            ctx.fillStyle = '#f8fafc';
+            ctx.font = '12px monospace';
+            const lx = cx + (r + 22) * Math.cos(angle) - 10;
+            const ly = cy - (r + 22) * Math.sin(angle) + 4;
+            ctx.fillText(`ω^${k}`, lx, ly);
+        }
+    }
+
+    // --- SECCIÓN 4: LABORATORIO N=8 ---
+    let signal = [1, 0.7, 0, -0.7, -1, -0.7, 0, 0.7];
+
+    function initInputs() {
+        const container = document.getElementById('signalInputs');
+        container.innerHTML = '';
+        for (let i = 0; i < 8; i++) {
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.step = '0.1';
+            input.value = signal[i];
+            input.oninput = (e) => {
+                signal[i] = parseFloat(e.target.value) || 0;
+                computeAndDraw();
+            };
+            container.appendChild(input);
+        }
+    }
+
+    function setPreset(type) {
+        if (type === 'impulse') signal = [1, 0, 0, 0, 0, 0, 0, 0];
+        if (type === 'dc') signal = [1, 1, 1, 1, 1, 1, 1, 1];
+        if (type === 'cosine') {
+            signal = Array.from({length: 8}, (_, n) => Number(Math.cos((2 * Math.PI * n) / 8).toFixed(2)));
+        }
+        if (type === 'mixed') {
+            signal = Array.from({length: 8}, (_, n) => Number((Math.cos((2 * Math.PI * n) / 8) + 0.5 * Math.sin((2 * Math.PI * 3 * n) / 8)).toFixed(2)));
+        }
+        initInputs();
+        computeAndDraw();
+    }
+
+    function computeDFT(x) {
+        const N = x.length;
+        const X = [];
+        for (let k = 0; k < N; k++) {
+            let re = 0, im = 0;
+            for (let n = 0; n < N; n++) {
+                const angle = (-2 * Math.PI * k * n) / N;
+                re += x[n] * Math.cos(angle);
+                im += x[n] * Math.sin(angle);
+            }
+            X.push(Math.sqrt(re * re + im * im));
+        }
+        return X;
+    }
+
+    function drawBarChart(canvasId, data, color, maxVal) {
+        const canvas = document.getElementById(canvasId);
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width;
+        const h = canvas.height;
+        const pad = 30;
+
+        ctx.clearRect(0, 0, w, h);
+
+        // Eje horizontal cero
+        const zeroY = canvasId === 'timeCanvas' ? h / 2 : h - pad;
+        ctx.strokeStyle = '#334155';
+        ctx.beginPath();
+        ctx.moveTo(pad, zeroY);
+        ctx.lineTo(w - pad, zeroY);
+        ctx.stroke();
+
+        const barWidth = (w - 2 * pad) / data.length * 0.6;
+        const step = (w - 2 * pad) / data.length;
+
+        data.forEach((val, idx) => {
+            const x = pad + idx * step + (step - barWidth) / 2;
+            const scale = canvasId === 'timeCanvas' ? (h / 2 - pad) / maxVal : (h - 2 * pad) / maxVal;
+            const barH = val * scale;
+
+            ctx.fillStyle = color;
+            if (canvasId === 'timeCanvas') {
+                ctx.fillRect(x, val >= 0 ? zeroY - barH : zeroY, barWidth, Math.abs(barH));
+            } else {
+                ctx.fillRect(x, zeroY - barH, barWidth, barH);
+            }
+
+            // Etiqueta índice
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '12px monospace';
+            ctx.fillText(idx, x + barWidth / 2 - 4, h - 8);
+        });
+    }
+
+    function computeAndDraw() {
+        const magnitudes = computeDFT(signal);
+        const maxTime = Math.max(1.5, ...signal.map(Math.abs));
+        const maxFreq = Math.max(4, ...magnitudes);
+
+        drawBarChart('timeCanvas', signal, '#38bdf8', maxTime);
+        drawBarChart('freqCanvas', magnitudes, '#818cf8', maxFreq);
+    }
+
+    // Inicializar vista
+    updateMatrixView();
+    initInputs();
+    computeAndDraw();
+</script>
+
+</body>
+</html>
