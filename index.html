@@ -3,53 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FFT Biomédica: Reconstrucción de Señal ECG por Cambio de Base</title>
-    <!-- MathJax para ecuaciones -->
+    <title>FFT Biomédica Visual: Matrices de Cambio de Base y Filtrado</title>
+    <!-- MathJax para fórmulas limpias -->
     <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <style>
         :root {
-            --bg-color: #0b1120;
-            --card-bg: #131c31;
-            --text-main: #f1f5f9;
-            --text-muted: #94a3b8;
-            --ecg-clean: #10b981;    /* Verde médico */
-            --ecg-noisy: #f43f5e;    /* Rojo alerta */
-            --freq-bar: #38bdf8;     /* Azul cian */
-            --border: #26334d;
+            --bg-color: #090d16;
+            --card-bg: #111827;
+            --card-inner: #1f2937;
+            --text-main: #f9fafb;
+            --text-muted: #9ca3af;
+            --ecg-clean: #10b981;
+            --ecg-noisy: #f43f5e;
+            --accent-blue: #38bdf8;
+            --accent-purple: #a855f7;
+            --border: #374151;
         }
 
         body {
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-main);
-            line-height: 1.6;
+            line-height: 1.65;
             margin: 0;
             padding: 0;
         }
 
         header {
-            background: linear-gradient(135deg, #0f172a 0%, #064e3b 100%);
+            background: radial-gradient(circle at top right, #064e3b 0%, #111827 60%, #090d16 100%);
             border-bottom: 1px solid var(--border);
-            padding: 2.5rem 1.5rem;
+            padding: 3rem 1.5rem;
             text-align: center;
         }
 
         header h1 {
             margin: 0;
-            font-size: 2.2rem;
-            color: #ecfdf5;
+            font-size: 2.3rem;
+            background: linear-gradient(to right, #34d399, #38bdf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
         header p {
-            color: #a7f3d0;
-            max-width: 750px;
+            color: #d1d5db;
+            max-width: 720px;
             margin: 0.8rem auto 0;
-            font-size: 1.05rem;
+            font-size: 1.1rem;
         }
 
         .container {
-            max-width: 1100px;
+            max-width: 1150px;
             margin: 2rem auto;
             padding: 0 1.5rem;
         }
@@ -57,98 +61,149 @@
         .card {
             background-color: var(--card-bg);
             border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 1.8rem;
+            border-radius: 16px;
+            padding: 2rem;
             margin-bottom: 2rem;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
         }
 
         h2 {
             color: var(--ecg-clean);
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 0.5rem;
             margin-top: 0;
-            font-size: 1.4rem;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
         }
 
-        .math-block {
-            background-color: #090e1a;
-            padding: 1rem;
-            border-radius: 8px;
-            overflow-x: auto;
-            border-left: 4px solid var(--ecg-clean);
-            margin: 1.2rem 0;
-        }
-
-        .pipeline {
+        /* Tarjetas explicativas amigables */
+        .story-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 1rem;
-            margin: 1.5rem 0;
-            text-align: center;
+            gap: 1.2rem;
+            margin-top: 1.5rem;
         }
 
-        .step-box {
-            background: #090e1a;
-            padding: 1rem;
-            border-radius: 8px;
+        @media (max-width: 850px) {
+            .story-grid { grid-template-columns: 1fr; }
+        }
+
+        .story-step {
+            background: var(--card-inner);
             border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.4rem;
+            position: relative;
         }
 
-        .step-box strong {
-            display: block;
-            color: var(--freq-bar);
-            margin-bottom: 0.4rem;
+        .step-number {
+            display: inline-block;
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--ecg-clean);
+            font-weight: bold;
+            padding: 0.2rem 0.7rem;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            margin-bottom: 0.6rem;
         }
 
-        @media (max-width: 768px) {
-            .pipeline { grid-template-columns: 1fr; }
+        .story-step h3 {
+            margin: 0 0 0.5rem 0;
+            font-size: 1.15rem;
+            color: #f3f4f6;
         }
 
-        .controls {
+        .story-step p {
+            margin: 0;
+            font-size: 0.95rem;
+            color: #d1d5db;
+        }
+
+        .analogy-box {
+            background: rgba(56, 189, 248, 0.08);
+            border-left: 4px solid var(--accent-blue);
+            padding: 1rem 1.2rem;
+            border-radius: 0 8px 8px 0;
+            margin-top: 1.5rem;
+            font-size: 0.95rem;
+        }
+
+        /* Controles interactivos */
+        .controls-panel {
             display: flex;
             flex-wrap: wrap;
             gap: 1.5rem;
-            background: #090e1a;
-            padding: 1.2rem;
-            border-radius: 8px;
+            background: #0b1120;
+            padding: 1.2rem 1.5rem;
+            border-radius: 12px;
+            border: 1px solid var(--border);
             margin-bottom: 1.5rem;
             align-items: center;
-            border: 1px solid var(--border);
         }
 
-        .control-group {
-            display: flex;
-            flex-direction: column;
-            gap: 0.3rem;
+        .control-item {
             flex: 1;
-            min-width: 200px;
+            min-width: 220px;
         }
 
-        label {
-            font-size: 0.9rem;
-            color: var(--text-muted);
+        .control-item label {
+            display: flex;
+            justify-content: space-between;
             font-weight: 600;
+            font-size: 0.95rem;
+            margin-bottom: 0.4rem;
         }
 
         input[type="range"] {
+            width: 100%;
             accent-color: var(--ecg-clean);
             cursor: pointer;
         }
 
-        .badge {
-            display: inline-block;
-            padding: 0.2rem 0.6rem;
-            border-radius: 4px;
-            font-size: 0.85rem;
-            font-weight: bold;
+        /* Visualizador de Matrices */
+        .matrix-pipeline {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            background: #0b1120;
+            padding: 1.5rem;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            margin: 1.5rem 0;
         }
 
-        .badge-noisy { background: rgba(244, 63, 94, 0.2); color: var(--ecg-noisy); }
-        .badge-clean { background: rgba(16, 185, 129, 0.2); color: var(--ecg-clean); }
+        .matrix-box {
+            flex: 1;
+            min-width: 210px;
+            text-align: center;
+        }
+
+        .matrix-box h4 {
+            margin: 0 0 0.3rem 0;
+            font-size: 1rem;
+            color: #e5e7eb;
+        }
+
+        .matrix-box p {
+            margin: 0 0 0.8rem 0;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .operator-symbol {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: var(--text-muted);
+        }
+
+        @media (max-width: 900px) {
+            .operator-symbol { display: none; }
+        }
 
         canvas {
-            background-color: #070b14;
+            background-color: #060911;
             border: 1px solid var(--border);
             border-radius: 8px;
             width: 100%;
@@ -156,15 +211,44 @@
             display: block;
         }
 
+        .matrix-canvas {
+            max-width: 220px;
+            margin: 0 auto;
+            cursor: crosshair;
+        }
+
+        .tooltip-bar {
+            background: var(--card-inner);
+            padding: 0.6rem 1rem;
+            border-radius: 8px;
+            font-size: 0.88rem;
+            color: #e5e7eb;
+            text-align: center;
+            margin-top: 0.8rem;
+            border: 1px solid var(--border);
+            min-height: 22px;
+        }
+
         .grid-2 {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1.3fr 1fr;
             gap: 1.5rem;
+            margin-top: 1.5rem;
         }
 
         @media (max-width: 850px) {
             .grid-2 { grid-template-columns: 1fr; }
         }
+
+        .badge {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .badge-noisy { background: rgba(244, 63, 94, 0.15); color: var(--ecg-noisy); }
+        .badge-clean { background: rgba(16, 185, 129, 0.15); color: var(--ecg-clean); }
 
         footer {
             text-align: center;
@@ -178,125 +262,161 @@
 <body>
 
 <header>
-    <h1>Filtrado y Reconstrucción de ECG mediante Cambio de Base</h1>
-    <p>Aplicación biomédica de la Transformada Rápida de Fourier (FFT): separando la actividad cardíaca del ruido eléctrico mediante Álgebra Lineal.</p>
+    <h1>Limpiando un Latido con Álgebra Lineal</h1>
+    <p>Descubre cómo una multiplicación de matrices transforma un electrocardiograma lleno de ruido eléctrico en un trazado médico limpio.</p>
 </header>
 
 <div class="container">
 
-    <!-- SECCIÓN 1: EL PROBLEMA BIOMÉDICO -->
+    <!-- SECCIÓN 1: EXPLICACIÓN AMIGABLE -->
     <div class="card">
-        <h2>1. El Problema Clínico y el Cambio de Base</h2>
+        <h2>¿Por qué usamos matrices para limpiar una señal médica?</h2>
         <p>
-            Al registrar un <strong>Electrocardiograma (ECG)</strong>, los electrodos captan el vector \(\mathbf{x}_{\text{crudo}} \in \mathbb{R}^N\) (en este ejemplo, \(N = 64\) muestras de un latido). Sin embargo, la señal suele contaminarse con <strong>interferencia electromagnética de la red eléctrica (60 Hz)</strong> y temblor muscular, ocultando las ondas clínicas (P, complejo QRS y onda T).
-        </p>
-        <p>
-            En la <strong>base canónica (tiempo)</strong>, el latido y el ruido están sumados en cada instante \(n\), por lo que es imposible separarlos directamente. Al aplicar la matriz de Fourier \(F_N\), proyectamos el latido sobre una <strong>base ortogonal de frecuencias puras</strong>:
+            Cuando un electrodo toca la piel de un paciente, no solo mide los milivoltios del corazón: también captura la <strong>interferencia eléctrica de los enchufes del hospital (60 Hz)</strong> y vibraciones musculares. En la gráfica normal del tiempo, el latido y el ruido están mezclados punto por punto.
         </p>
 
-        <div class="pipeline">
-            <div class="step-box">
-                <strong>1. Análisis (Cambio de Base)</strong>
-                \(\mathbf{X} = F_N \mathbf{x}_{\text{crudo}}\)<br>
-                <small style="color:var(--text-muted)">Pasamos de milivoltios en el tiempo a coeficientes de frecuencia.</small>
-            </div>
-            <div class="step-box">
-                <strong>2. Filtrado en la Nueva Base</strong>
-                \(\mathbf{X}_{\text{limpio}} = M_{\text{filtro}} \mathbf{X}\)<br>
-                <small style="color:var(--text-muted)">Anulamos los vectores base asociados a frecuencias altas (ruido).</small>
-            </div>
-            <div class="step-box">
-                <strong>3. Síntesis (Reconstrucción)</strong>
-                \(\mathbf{x}_{\text{rec}} = F_N^{-1} \mathbf{X}_{\text{limpio}} = \frac{1}{N} F_N^* \mathbf{X}_{\text{limpio}}\)<br>
-                <small style="color:var(--text-muted)">Volvemos a la base del tiempo usando la matriz conjugada transpuesta.</small>
-            </div>
+        <div class="analogy-box">
+            <strong>💡 La Analogía del Prisma:</strong> Imagina que el ECG ruidoso es un rayo de luz blanca mezclada. La <strong>Matriz de Fourier (\(F_N\))</strong> actúa como un prisma de cristal: separa la señal en sus "colores" (frecuencias puras). Una vez separados, podemos tapar con la mano el color del ruido eléctrico usando una <strong>Matriz de Filtro (\(M\))</strong>, y volver a juntar los colores limpios con la <strong>Matriz Inversa (\(F_N^{-1}\))</strong>.
         </div>
 
-        <div class="math-block">
-            $$\mathbf{x}_{\text{reconstruido}} = \underbrace{\frac{1}{N} F_N^*}_{\text{Base Inversa}} \cdot \underbrace{M_{\text{filtro}}}_{\text{Proyector}} \cdot \underbrace{F_N \mathbf{x}_{\text{crudo}}}_{\text{Coordenadas en Fourier}}$$
+        <div class="story-grid">
+            <div class="story-step">
+                <span class="step-number">Paso 1: Cambiar de Idioma</span>
+                <h3>Matriz de Fourier (\(F_N\))</h3>
+                <p>Traduce nuestra lista de voltajes en el tiempo a una lista de <strong>ingredientes de frecuencia</strong>. Aquí el latido suave queda arriba y el ruido rápido queda abajo.</p>
+            </div>
+            <div class="story-step">
+                <span class="step-number">Paso 2: El Colador Matemático</span>
+                <h3>Matriz de Filtro (\(M\))</h3>
+                <p>Es una matriz diagonal llena de <strong>1s</strong> (dejar pasar) y <strong>0s</strong> (bloquear). Al multiplicar por ella, multiplicamos por cero las filas donde vive el ruido eléctrico.</p>
+            </div>
+            <div class="story-step">
+                <span class="step-number">Paso 3: Volver al Tiempo</span>
+                <h3>Matriz Inversa (\(F_N^{-1}\))</h3>
+                <p>Toma únicamente los ingredientes limpios que sobrevivieron al filtro y los vuelve a sumar para dibujar el electrocardiograma sano en la pantalla del médico.</p>
+            </div>
         </div>
     </div>
 
-    <!-- SECCIÓN 2: SIMULADOR BIOMÉDICO -->
+    <!-- SECCIÓN 2: LABORATORIO VISUAL DE MATRICES Y ECG -->
     <div class="card">
-        <h2>2. Monitor de Reconstrucción ECG en Tiempo Real (\(N = 64\))</h2>
-        <p>
-            Experimenta contaminando el latido cardíaco con ruido de red eléctrica y ajusta la <strong>frecuencia de corte (\(k_{\max}\))</strong> para decidir cuántos vectores de la base de Fourier conservar al reconstruir la señal.
+        <h2>Laboratorio Interactivo: Mira las Matrices en Acción</h2>
+        <p>Mueve los deslizadores para contaminar el latido con ruido eléctrico y observa cómo cambia la <strong>Matriz de Filtro (\(M\))</strong> para rescatar la señal.</p>
+
+        <!-- CONTROLES -->
+        <div class="controls-panel">
+            <div class="control-item">
+                <label>
+                    <span>⚡ Interferencia Eléctrica (Ruido 60 Hz)</span>
+                    <span id="noiseLabel" style="color: var(--ecg-noisy);">45%</span>
+                </label>
+                <input type="range" id="noiseSlider" min="0" max="100" value="45" oninput="updateAll()">
+            </div>
+            <div class="control-item">
+                <label>
+                    <span>🎛️ Apertura del Filtro (Frecuencias permitidas)</span>
+                    <span id="cutoffLabel" style="color: var(--ecg-clean);">12 de 32</span>
+                </label>
+                <input type="range" id="cutoffSlider" min="1" max="32" value="12" oninput="updateAll()">
+            </div>
+        </div>
+
+        <!-- TRAZADO ECG PRINCIPAL -->
+        <div>
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.6rem;">
+                <h3 style="margin:0; font-size:1.15rem;">Resultado en el Monitor Cardíaco</h3>
+                <div>
+                    <span class="badge badge-noisy">--- Señal Cruda con Ruido</span>
+                    <span class="badge badge-clean">— Latido Reconstruido (\(\mathbf{x}_{\text{limpio}} = F_N^{-1} M F_N \mathbf{x}\))</span>
+                </div>
+            </div>
+            <canvas id="ecgCanvas" width="950" height="250"></canvas>
+        </div>
+
+        <!-- VISUALIZACIÓN DE LAS 3 MATRICES -->
+        <h3 style="margin: 2rem 0 0.5rem 0; font-size:1.15rem;">Radiografía de las Matrices (\(32 \times 32\) visibles)</h3>
+        <p style="margin:0; font-size:0.9rem; color:var(--text-muted);">
+            Pasa el cursor sobre cualquier matriz para inspeccionar qué hace cada fila y columna.
         </p>
 
-        <div class="controls">
-            <div class="control-group">
-                <label for="noiseSlider">Ruido Eléctrico (60 Hz + EMG): <span id="noiseVal" style="color:var(--ecg-noisy)">40%</span></label>
-                <input type="range" id="noiseSlider" min="0" max="100" value="40" oninput="updateSimulation()">
+        <div class="matrix-pipeline">
+            <!-- MATRIZ 1: INVERSA -->
+            <div class="matrix-box">
+                <h4>3. Reconstrucción (\(F_N^{-1}\))</h4>
+                <p>Ondas coseno que re-ensamblan el latido</p>
+                <canvas id="invMatrixCanvas" class="matrix-canvas" width="192" height="192"></canvas>
             </div>
-            <div class="control-group">
-                <label for="cutoffSlider">Vectores Base Conservados (\(k \le k_{\max}\)): <span id="cutoffVal" style="color:var(--ecg-clean)">12 de 32</span></label>
-                <input type="range" id="cutoffSlider" min="1" max="32" value="12" oninput="updateSimulation()">
+
+            <div class="operator-symbol">×</div>
+
+            <!-- MATRIZ 2: FILTRO -->
+            <div class="matrix-box">
+                <h4>2. Matriz de Filtro (\(M\))</h4>
+                <p><span style="color:#10b981;">■</span> 1 (Pasa) &nbsp;|&nbsp; <span style="color:#4b5563;">■</span> 0 (Bloqueado)</p>
+                <canvas id="filterMatrixCanvas" class="matrix-canvas" width="192" height="192"></canvas>
+            </div>
+
+            <div class="operator-symbol">×</div>
+
+            <!-- MATRIZ 3: FOURIER -->
+            <div class="matrix-box">
+                <h4>1. Cambio de Base (\(F_N\))</h4>
+                <p>Cada fila busca una frecuencia distinta</p>
+                <canvas id="fourierMatrixCanvas" class="matrix-canvas" width="192" height="192"></canvas>
             </div>
         </div>
 
-        <!-- GRÁFICA 1: SEÑAL EN EL TIEMPO -->
-        <div style="margin-bottom: 1.5rem;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
-                <h3 style="margin:0;">Dominio del Tiempo (Base Canónica)</h3>
-                <div>
-                    <span class="badge badge-noisy">--- Señal Cruda (Electrodo)</span>
-                    <span class="badge badge-clean">— Señal Reconstruida (F⁻¹ X_filtrado)</span>
-                </div>
-            </div>
-            <canvas id="ecgCanvas" width="900" height="260"></canvas>
+        <div class="tooltip-bar" id="matrixTooltip">
+            👆 Pasa el ratón sobre los cuadros de las matrices para ver qué frecuencia representan.
         </div>
 
-        <!-- GRÁFICA 2: ESPECTRO Y RECONSTRUCCIÓN POR ARMÓNICOS -->
+        <!-- ESPECTRO Y DIAGNÓSTICO -->
         <div class="grid-2">
             <div>
-                <h3>Coordenadas en la Base de Fourier \(|\mathbf{X}[k]|\)</h3>
-                <p style="font-size:0.85rem; color:var(--text-muted); margin-top:0;">
-                    Barras azules: frecuencias conservadas. Barras grises: frecuencias anuladas por el filtro. Observa el pico de ruido en \(k=24\).
+                <h4 style="margin:0 0 0.4rem 0;">Ingredientes de Frecuencia (\(\mathbf{X} = F_N \mathbf{x}\))</h4>
+                <p style="font-size:0.85rem; color:var(--text-muted); margin:0 0 0.6rem 0;">
+                    Las barras azules pasan el filtro. Las grises son bloqueadas por los ceros de la matriz \(M\). Nota el pico de ruido eléctrico en \(k=24\).
                 </p>
-                <canvas id="spectrumCanvas" width="450" height="220"></canvas>
+                <canvas id="spectrumCanvas" width="500" height="200"></canvas>
             </div>
             <div>
-                <h3>Diagnóstico de la Reconstrucción</h3>
-                <div id="diagnosticBox" style="background:#090e1a; padding:1rem; border-radius:8px; border:1px solid var(--border); height: 188px; display:flex; flex-direction:column; justify-content:center;">
-                    <!-- Se llena dinámicamente con JS -->
+                <h4 style="margin:0 0 0.4rem 0;">¿Qué está pasando clínicamente?</h4>
+                <div id="clinicalFeedback" style="background:#0b1120; border:1px solid var(--border); border-radius:10px; padding:1.1rem; height:172px; display:flex; flex-direction:column; justify-content:center;">
                 </div>
             </div>
         </div>
+
     </div>
 
 </div>
 
 <footer>
-    <p>Simulador Educativo de Procesamiento de Señales Biomédicas • Álgebra Lineal y FFT</p>
+    <p>Proyecto Interactivo de Álgebra Lineal Aplicada a Ingeniería Biomédica • Listo para GitHub Pages</p>
 </footer>
 
 <script>
-    const N = 64; // Número de muestras del ciclo cardíaco
+    const N = 64; // Muestras del latido
+    const VIS_SIZE = 32; // Mostramos el bloque 32x32 de frecuencias positivas para claridad visual
 
-    // Generar un latido ECG sintético realista (Ondas P, QRS, T) de N=64 muestras
-    function generateIdealECG() {
-        const ecg = [];
+    // Generar latido ECG ideal (Ondas P, Q, R, S, T)
+    function createIdealECG() {
+        const data = [];
         for (let n = 0; n < N; n++) {
-            const t = n / N; // Tiempo normalizado [0, 1]
-            // Onda P (despolarización auricular)
-            const pWave = 0.15 * Math.exp(-Math.pow((t - 0.18) / 0.035, 2));
-            // Complejo QRS (despolarización ventricular)
-            const qWave = -0.15 * Math.exp(-Math.pow((t - 0.36) / 0.012, 2));
-            const rWave = 1.00 * Math.exp(-Math.pow((t - 0.40) / 0.015, 2));
-            const sWave = -0.25 * Math.exp(-Math.pow((t - 0.44) / 0.014, 2));
-            // Onda T (repolarización ventricular)
-            const tWave = 0.30 * Math.exp(-Math.pow((t - 0.68) / 0.055, 2));
-
-            ecg.push(pWave + qWave + rWave + sWave + tWave);
+            const t = n / N;
+            const p = 0.16 * Math.exp(-Math.pow((t - 0.18) / 0.035, 2));
+            const q = -0.15 * Math.exp(-Math.pow((t - 0.36) / 0.012, 2));
+            const r = 1.00 * Math.exp(-Math.pow((t - 0.40) / 0.015, 2));
+            const s = -0.25 * Math.exp(-Math.pow((t - 0.44) / 0.014, 2));
+            const tWave = 0.32 * Math.exp(-Math.pow((t - 0.68) / 0.055, 2));
+            data.push(p + q + r + s + tWave);
         }
-        return ecg;
+        return data;
     }
 
-    const idealECG = generateIdealECG();
+    const idealECG = createIdealECG();
 
-    // Multiplicación directa por matriz de Fourier F_N: X = F_N * x
-    function dft(x) {
+    // Transformada de Fourier Discreta (Multiplicación por F_N)
+    function forwardFFT(x) {
         const X = [];
         for (let k = 0; k < N; k++) {
             let re = 0, im = 0;
@@ -310,64 +430,86 @@
         return X;
     }
 
-    // Reconstrucción mediante matriz inversa: x_rec = (1/N) * F_N^* * X
-    function idft(X) {
-        const xRec = [];
+    // Transformada Inversa (Multiplicación por 1/N * F_N^*)
+    function inverseFFT(X) {
+        const x = [];
         for (let n = 0; n < N; n++) {
             let re = 0;
             for (let k = 0; k < N; k++) {
-                const angle = (2 * Math.PI * k * n) / N; // Signo positivo (conjugado)
+                const angle = (2 * Math.PI * k * n) / N;
                 re += X[k].re * Math.cos(angle) - X[k].im * Math.sin(angle);
             }
-            xRec.push(re / N);
+            x.push(re / N);
         }
-        return xRec;
+        return x;
     }
 
-    function updateSimulation() {
-        const noiseLevel = parseInt(document.getElementById('noiseSlider').value) / 100;
-        const cutoff = parseInt(document.getElementById('cutoffSlider').value);
+    // Dibujar mapa de calor de la Matriz de Fourier F_N (Parte Real: Cosenos)
+    function drawFourierMatrices(cutoff) {
+        const fCanvas = document.getElementById('fourierMatrixCanvas');
+        const iCanvas = document.getElementById('invMatrixCanvas');
+        const fCtx = fCanvas.getContext('2d');
+        const iCtx = iCanvas.getContext('2d');
+        const cell = fCanvas.width / VIS_SIZE;
 
-        document.getElementById('noiseVal').innerText = `${Math.round(noiseLevel * 100)}%`;
-        document.getElementById('cutoffVal').innerText = `${cutoff} de ${N/2}`;
+        for (let row = 0; row < VIS_SIZE; row++) {
+            for (let col = 0; col < VIS_SIZE; col++) {
+                // F_N: fila = frecuencia k, col = tiempo n
+                const valF = Math.cos((-2 * Math.PI * row * col) / N);
+                // Color entre azul (negativo) y esmeralda/blanco (positivo)
+                fCtx.fillStyle = getWaveColor(valF, row <= cutoff ? 1.0 : 0.25);
+                fCtx.fillRect(col * cell, row * cell, cell, cell);
 
-        // 1. Contaminar la señal con interferencia de red eléctrica (k=24) y armónico (k=29)
-        const noisyECG = idealECG.map((val, n) => {
-            const powerLineNoise = noiseLevel * 0.45 * Math.sin((2 * Math.PI * 24 * n) / N);
-            const emgNoise = noiseLevel * 0.20 * Math.cos((2 * Math.PI * 29 * n) / N + 0.5);
-            return val + powerLineNoise + emgNoise;
-        });
-
-        // 2. Cambio de base: Tiempo -> Frecuencia (X = F_N * x)
-        const spectrum = dft(noisyECG);
-
-        // 3. Filtrado en la base de Fourier (manteniendo simetría hermítica para señal real)
-        const filteredSpectrum = spectrum.map((coef, k) => {
-            // Frecuencias bajas: k <= cutoff o su conjugado simétrico N - k <= cutoff
-            const freqIndex = k <= N / 2 ? k : N - k;
-            if (freqIndex <= cutoff) {
-                return coef;
-            } else {
-                return { re: 0, im: 0, mag: 0 };
+                // F_N^-1: fila = tiempo n, col = frecuencia k
+                const valInv = Math.cos((2 * Math.PI * row * col) / N);
+                // Atenuamos las columnas que el filtro ya puso en cero
+                iCtx.fillStyle = getWaveColor(valInv, col <= cutoff ? 1.0 : 0.15);
+                iCtx.fillRect(col * cell, row * cell, cell, cell);
             }
-        });
-
-        // 4. Reconstrucción: Frecuencia -> Tiempo (x_rec = F_N^-1 * X_filtrado)
-        const reconstructedECG = idft(filteredSpectrum);
-
-        // Calcular error cuadrático medio (RMSE) respecto al ECG ideal
-        let mse = 0;
-        for (let n = 0; n < N; n++) {
-            mse += Math.pow(idealECG[n] - reconstructedECG[n], 2);
         }
-        const rmse = Math.sqrt(mse / N);
-
-        drawECG(noisyECG, reconstructedECG);
-        drawSpectrum(spectrum, cutoff);
-        updateDiagnostics(cutoff, noiseLevel, rmse);
     }
 
-    function drawECG(noisy, reconstructed) {
+    function getWaveColor(val, alpha) {
+        // val está entre -1 y 1
+        if (val >= 0) {
+            const g = Math.round(140 + val * 115);
+            const b = Math.round(180 + val * 75);
+            return `rgba(56, ${g}, ${b}, ${alpha})`;
+        } else {
+            const r = Math.round(30 + Math.abs(val) * 140);
+            const b = Math.round(80 + Math.abs(val) * 120);
+            return `rgba(${r}, 40, ${b}, ${alpha})`;
+        }
+    }
+
+    // Dibujar Matriz Diagonal de Filtro M
+    function drawFilterMatrix(cutoff) {
+        const canvas = document.getElementById('filterMatrixCanvas');
+        const ctx = canvas.getContext('2d');
+        const cell = canvas.width / VIS_SIZE;
+
+        ctx.fillStyle = '#090d16';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        for (let k = 0; k < VIS_SIZE; k++) {
+            // Cuadrícula sutil
+            ctx.strokeStyle = '#1f2937';
+            ctx.strokeRect(k * cell, k * cell, cell, cell);
+
+            // Diagonal principal
+            if (k <= cutoff) {
+                ctx.fillStyle = '#10b981'; // 1 = Deja pasar
+            } else if (k === 24) {
+                ctx.fillStyle = '#f43f5e'; // Bloqueando ruido de 60Hz
+            } else {
+                ctx.fillStyle = '#374151'; // 0 = Bloqueado
+            }
+            ctx.fillRect(k * cell + 0.5, k * cell + 0.5, cell - 1, cell - 1);
+        }
+    }
+
+    // Dibujar Gráfica ECG
+    function drawECG(noisy, clean) {
         const canvas = document.getElementById('ecgCanvas');
         const ctx = canvas.getContext('2d');
         const w = canvas.width;
@@ -376,109 +518,178 @@
 
         ctx.clearRect(0, 0, w, h);
 
-        // Cuadrícula tipo papel milimetrado médico
-        ctx.strokeStyle = '#162238';
+        // Cuadrícula hospitalaria
+        ctx.strokeStyle = '#131c2e';
         ctx.lineWidth = 1;
-        for (let x = 0; x < w; x += 25) {
-            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
-        }
-        for (let y = 0; y < h; y += 25) {
-            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
-        }
+        for (let x = 0; x < w; x += 25) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
+        for (let y = 0; y < h; y += 25) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
 
-        const mapY = (val) => h * 0.72 - val * (h * 0.55);
+        const mapY = (v) => h * 0.72 - v * (h * 0.54);
         const stepX = (w - 2 * pad) / (N - 1);
 
-        // Dibujar señal cruda (con ruido)
-        ctx.strokeStyle = 'rgba(244, 63, 94, 0.65)';
+        // Señal ruidosa
+        ctx.strokeStyle = 'rgba(244, 63, 94, 0.6)';
         ctx.lineWidth = 2;
         ctx.setLineDash([5, 4]);
         ctx.beginPath();
-        noisy.forEach((val, n) => {
-            const x = pad + n * stepX;
-            const y = mapY(val);
-            if (n === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
+        noisy.forEach((v, i) => {
+            const x = pad + i * stepX, y = mapY(v);
+            i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
         });
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Dibujar señal reconstruida (limpia)
+        // Señal reconstruida limpia
         ctx.strokeStyle = '#10b981';
-        ctx.lineWidth = 3;
+        ctx.lineWidth = 3.2;
         ctx.beginPath();
-        reconstructed.forEach((val, n) => {
-            const x = pad + n * stepX;
-            const y = mapY(val);
-            if (n === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
+        clean.forEach((v, i) => {
+            const x = pad + i * stepX, y = mapY(v);
+            i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
         });
         ctx.stroke();
     }
 
+    // Dibujar Espectro de Frecuencias
     function drawSpectrum(spectrum, cutoff) {
         const canvas = document.getElementById('spectrumCanvas');
         const ctx = canvas.getContext('2d');
         const w = canvas.width;
         const h = canvas.height;
-        const pad = 25;
+        const pad = 24;
 
         ctx.clearRect(0, 0, w, h);
 
-        const halfN = N / 2; // Mostramos frecuencias positivas k = 0..31
-        const barW = (w - 2 * pad) / halfN * 0.7;
-        const step = (w - 2 * pad) / halfN;
+        const step = (w - 2 * pad) / VIS_SIZE;
+        const barW = step * 0.68;
         const maxMag = 16;
 
-        for (let k = 0; k < halfN; k++) {
+        for (let k = 0; k < VIS_SIZE; k++) {
             const mag = Math.min(spectrum[k].mag, maxMag);
             const barH = (mag / maxMag) * (h - 2 * pad);
             const x = pad + k * step;
             const y = h - pad - barH;
 
-            // Color según si el vector base se conserva o se filtra
-            ctx.fillStyle = k <= cutoff ? '#38bdf8' : '#334155';
+            if (k <= cutoff) {
+                ctx.fillStyle = '#38bdf8';
+            } else if (k === 24) {
+                ctx.fillStyle = '#f43f5e'; // Pico de ruido bloqueado
+            } else {
+                ctx.fillStyle = '#374151';
+            }
+
             ctx.fillRect(x, y, barW, barH);
 
-            // Etiquetas clave
-            if (k === 0 || k === 12 || k === 24) {
-                ctx.fillStyle = '#94a3b8';
+            if (k === 0 || k === 12 || k === 24 || k === 31) {
+                ctx.fillStyle = '#9ca3af';
                 ctx.font = '11px monospace';
-                ctx.fillText(`k=${k}`, x - 4, h - 8);
+                ctx.fillText(`k=${k}`, x - 4, h - 7);
             }
         }
     }
 
-    function updateDiagnostics(cutoff, noiseLevel, rmse) {
-        const box = document.getElementById('diagnosticBox');
-        let status = '';
-        let explanation = '';
+    function updateClinicalBox(cutoff, noise, rmse) {
+        const box = document.getElementById('clinicalFeedback');
+        let title = '', desc = '';
 
         if (cutoff < 5) {
-            status = '<span style="color:#f59e0b; font-weight:bold;">⚠️ Sub-reconstrucción (Pérdida clínica)</span>';
-            explanation = 'Usas muy pocos vectores de la base de Fourier. El complejo QRS pierde amplitud y se redondea porque las puntas agudas requieren armónicos medios (k = 6 a 14).';
-        } else if (cutoff >= 5 && cutoff <= 18) {
-            status = '<span style="color:#10b981; font-weight:bold;">✅ Reconstrucción Óptima</span>';
-            explanation = 'Con solo ~12 vectores base reconstruyes fielmente las ondas P, QRS y T, mientras eliminas por completo el ruido de 60 Hz ubicado en k = 24.';
-        } else if (cutoff >= 24 && noiseLevel > 0.1) {
-            status = '<span style="color:#f43f5e; font-weight:bold;">❌ Contaminación por Ruido de Red</span>';
-            explanation = 'Al incluir k ≥ 24 en la suma inversa, reincorporas el vector base correspondiente a la interferencia eléctrica (60 Hz), deformando el trazado.';
+            title = '<span style="color:#fbbf24; font-weight:bold;">⚠️ Demasiados ceros en la matriz M</span>';
+            desc = 'Al bloquear tantas filas, borras el ruido pero también aplastas el pico agudo del corazón (complejo QRS). Necesitas incluir frecuencias medias (k = 6 a 14) para dibujar picos afilados.';
+        } else if (cutoff <= 20) {
+            title = '<span style="color:#10b981; font-weight:bold;">✅ Filtrado Matricial Exitoso</span>';
+            desc = 'La matriz M deja pasar las ondas suaves del corazón (k ≤ ' + cutoff + ') y multiplica por cero el ruido eléctrico (k = 24). El médico ya puede leer las ondas P, QRS y T con claridad.';
+        } else if (cutoff >= 24 && noise > 0.1) {
+            title = '<span style="color:#f43f5e; font-weight:bold;">❌ El ruido de 60 Hz logró pasar</span>';
+            desc = 'Como abriste el filtro hasta k ≥ 24, la matriz M tiene un "1" en la posición del ruido eléctrico. Al multiplicar por la matriz inversa, esa vibración vuelve a contaminar el latido.';
         } else {
-            status = '<span style="color:#38bdf8; font-weight:bold;">ℹ️ Reconstrucción de Banda Ancha</span>';
-            explanation = 'Estás conservando casi toda la base original. Si no hay ruido presente, la reconstrucción es exacta.';
+            title = '<span style="color:#38bdf8; font-weight:bold;">ℹ️ Filtro Abierto (Sin recorte)</span>';
+            desc = 'La matriz M actúa casi como una matriz identidad: deja pasar todas las frecuencias sin modificar la señal original.';
         }
 
         box.innerHTML = `
-            <div style="margin-bottom:0.6rem; font-size:1.05rem;">${status}</div>
-            <p style="margin:0 0 0.8rem 0; font-size:0.9rem; color:#cbd5e1;">${explanation}</p>
-            <div style="font-family:monospace; font-size:0.85rem; color:#94a3b8; border-top:1px solid #26334d; padding-top:0.5rem;">
-                Error de reconstrucción (RMSE): <strong style="color:#f8fafc;">${rmse.toFixed(4)} mV</strong> | Compresión: <strong style="color:#f8fafc;">${Math.round((1 - cutoff/32)*100)}%</strong>
+            <div style="margin-bottom:0.5rem; font-size:1.05rem;">${title}</div>
+            <p style="margin:0 0 0.8rem 0; font-size:0.9rem; color:#d1d5db;">${desc}</p>
+            <div style="font-family:monospace; font-size:0.82rem; color:#9ca3af; border-top:1px solid #374151; padding-top:0.5rem;">
+                Error vs Latido Sano: <strong style="color:#fff;">${rmse.toFixed(4)} mV</strong> | Datos descartados: <strong style="color:#10b981;">${Math.round((1 - cutoff/32)*100)}%</strong>
             </div>
         `;
     }
 
-    // Inicializar
-    updateSimulation();
+    function updateAll() {
+        const noise = parseInt(document.getElementById('noiseSlider').value) / 100;
+        const cutoff = parseInt(document.getElementById('cutoffSlider').value);
+
+        document.getElementById('noiseLabel').innerText = `${Math.round(noise * 100)}%`;
+        document.getElementById('cutoffLabel').innerText = `${cutoff} de 32`;
+
+        // Contaminar ECG
+        const noisyECG = idealECG.map((val, n) => {
+            const hum60Hz = noise * 0.45 * Math.sin((2 * Math.PI * 24 * n) / N);
+            const emg = noise * 0.18 * Math.cos((2 * Math.PI * 29 * n) / N + 0.4);
+            return val + hum60Hz + emg;
+        });
+
+        // 1. Cambio de base: Tiempo -> Frecuencia
+        const spectrum = forwardFFT(noisyECG);
+
+        // 2. Aplicar matriz de filtro M
+        const filtered = spectrum.map((c, k) => {
+            const symK = k <= N / 2 ? k : N - k;
+            return symK <= cutoff ? c : { re: 0, im: 0, mag: 0 };
+        });
+
+        // 3. Reconstrucción: Frecuencia -> Tiempo
+        const cleanECG = inverseFFT(filtered);
+
+        // Calcular error
+        const rmse = Math.sqrt(idealECG.reduce((acc, v, i) => acc + Math.pow(v - cleanECG[i], 2), 0) / N);
+
+        drawECG(noisyECG, cleanECG);
+        drawFourierMatrices(cutoff);
+        drawFilterMatrix(cutoff);
+        drawSpectrum(spectrum, cutoff);
+        updateClinicalBox(cutoff, noise, rmse);
+    }
+
+    // Tooltips interactivos al pasar el mouse sobre las matrices
+    function setupMatrixTooltips() {
+        const tooltip = document.getElementById('matrixTooltip');
+
+        document.getElementById('fourierMatrixCanvas').addEventListener('mousemove', (e) => {
+            const rect = e.target.getBoundingClientRect();
+            const col = Math.floor(((e.clientX - rect.left) / rect.width) * VIS_SIZE);
+            const row = Math.floor(((e.clientY - rect.top) / rect.height) * VIS_SIZE);
+            const cutoff = parseInt(document.getElementById('cutoffSlider').value);
+            const status = row <= cutoff ? '✅ Conservada' : '🚫 Será eliminada';
+            tooltip.innerHTML = `<strong>Matriz \(F_N\)</strong> — Fila \(k=${row}\) (Frecuencia), Columna \(n=${col}\) (Tiempo) | Estado: ${status}`;
+        });
+
+        document.getElementById('filterMatrixCanvas').addEventListener('mousemove', (e) => {
+            const rect = e.target.getBoundingClientRect();
+            const col = Math.floor(((e.clientX - rect.left) / rect.width) * VIS_SIZE);
+            const row = Math.floor(((e.clientY - rect.top) / rect.height) * VIS_SIZE);
+            const cutoff = parseInt(document.getElementById('cutoffSlider').value);
+            if (row === col) {
+                const val = row <= cutoff ? '1 (Deja pasar esta frecuencia)' : '0 (Multiplica por cero / Bloquea)';
+                const extra = row === 24 ? ' ⚡ ¡Aquí está el ruido de 60 Hz!' : '';
+                tooltip.innerHTML = `<strong>Matriz de Filtro \(M\)</strong> — Diagonal (\(k=${row}\)): Valor = <strong>${val}</strong>${extra}`;
+            } else {
+                tooltip.innerHTML = `<strong>Matriz de Filtro \(M\)</strong> — Posición fuera de la diagonal (${row}, ${col}): Valor = <strong>0</strong> (No mezcla frecuencias entre sí).`;
+            }
+        });
+
+        document.getElementById('invMatrixCanvas').addEventListener('mousemove', (e) => {
+            const rect = e.target.getBoundingClientRect();
+            const col = Math.floor(((e.clientX - rect.left) / rect.width) * VIS_SIZE);
+            const row = Math.floor(((e.clientY - rect.top) / rect.height) * VIS_SIZE);
+            const cutoff = parseInt(document.getElementById('cutoffSlider').value);
+            const active = col <= cutoff ? 'Participa en el dibujo del latido' : 'Apagada (multiplicada por 0)';
+            tooltip.innerHTML = `<strong>Matriz Inversa \(F_N^{-1}\)</strong> — Instante \(n=${row}\), Onda base \(k=${col}\): <em>${active}</em>`;
+        });
+    }
+
+    setupMatrixTooltips();
+    updateAll();
 </script>
 
 </body>
