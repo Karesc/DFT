@@ -3,19 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>La FFT como Matriz de Cambio de Base</title>
-    <!-- MathJax para renderizar fórmulas matemáticas -->
+    <title>FFT Biomédica: Reconstrucción de Señal ECG por Cambio de Base</title>
+    <!-- MathJax para ecuaciones -->
     <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <style>
         :root {
-            --bg-color: #0f172a;
-            --card-bg: #1e293b;
-            --text-main: #f8fafc;
+            --bg-color: #0b1120;
+            --card-bg: #131c31;
+            --text-main: #f1f5f9;
             --text-muted: #94a3b8;
-            --accent: #38bdf8;
-            --accent-secondary: #818cf8;
-            --border: #334155;
+            --ecg-clean: #10b981;    /* Verde médico */
+            --ecg-noisy: #f43f5e;    /* Rojo alerta */
+            --freq-bar: #38bdf8;     /* Azul cian */
+            --border: #26334d;
         }
 
         body {
@@ -28,29 +29,27 @@
         }
 
         header {
-            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            background: linear-gradient(135deg, #0f172a 0%, #064e3b 100%);
             border-bottom: 1px solid var(--border);
-            padding: 3rem 1.5rem;
+            padding: 2.5rem 1.5rem;
             text-align: center;
         }
 
         header h1 {
             margin: 0;
-            font-size: 2.5rem;
-            background: linear-gradient(to right, var(--accent), var(--accent-secondary));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            font-size: 2.2rem;
+            color: #ecfdf5;
         }
 
         header p {
-            color: var(--text-muted);
-            max-width: 700px;
-            margin: 1rem auto 0;
-            font-size: 1.1rem;
+            color: #a7f3d0;
+            max-width: 750px;
+            margin: 0.8rem auto 0;
+            font-size: 1.05rem;
         }
 
         .container {
-            max-width: 1000px;
+            max-width: 1100px;
             margin: 2rem auto;
             padding: 0 1.5rem;
         }
@@ -59,104 +58,112 @@
             background-color: var(--card-bg);
             border: 1px solid var(--border);
             border-radius: 12px;
-            padding: 2rem;
+            padding: 1.8rem;
             margin-bottom: 2rem;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
         }
 
         h2 {
-            color: var(--accent);
+            color: var(--ecg-clean);
             border-bottom: 1px solid var(--border);
             padding-bottom: 0.5rem;
             margin-top: 0;
+            font-size: 1.4rem;
         }
 
         .math-block {
-            background-color: #0f172a;
+            background-color: #090e1a;
             padding: 1rem;
             border-radius: 8px;
             overflow-x: auto;
-            border-left: 4px solid var(--accent-secondary);
-            margin: 1.5rem 0;
+            border-left: 4px solid var(--ecg-clean);
+            margin: 1.2rem 0;
         }
 
-        /* Controles interactivos */
+        .pipeline {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin: 1.5rem 0;
+            text-align: center;
+        }
+
+        .step-box {
+            background: #090e1a;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        .step-box strong {
+            display: block;
+            color: var(--freq-bar);
+            margin-bottom: 0.4rem;
+        }
+
+        @media (max-width: 768px) {
+            .pipeline { grid-template-columns: 1fr; }
+        }
+
         .controls {
             display: flex;
             flex-wrap: wrap;
-            gap: 1rem;
+            gap: 1.5rem;
+            background: #090e1a;
+            padding: 1.2rem;
+            border-radius: 8px;
             margin-bottom: 1.5rem;
             align-items: center;
+            border: 1px solid var(--border);
         }
 
-        button, select {
-            background-color: #0f172a;
-            color: var(--text-main);
-            border: 1px solid var(--accent);
-            padding: 0.6rem 1.2rem;
-            border-radius: 6px;
-            font-size: 1rem;
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        label {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        input[type="range"] {
+            accent-color: var(--ecg-clean);
             cursor: pointer;
-            transition: all 0.2s;
         }
 
-        button:hover {
-            background-color: var(--accent);
-            color: #0f172a;
+        .badge {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
             font-weight: bold;
+        }
+
+        .badge-noisy { background: rgba(244, 63, 94, 0.2); color: var(--ecg-noisy); }
+        .badge-clean { background: rgba(16, 185, 129, 0.2); color: var(--ecg-clean); }
+
+        canvas {
+            background-color: #070b14;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            width: 100%;
+            height: auto;
+            display: block;
         }
 
         .grid-2 {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 2rem;
+            gap: 1.5rem;
         }
 
-        @media (max-width: 768px) {
+        @media (max-width: 850px) {
             .grid-2 { grid-template-columns: 1fr; }
-        }
-
-        table.matrix-table {
-            width: 100%;
-            border-collapse: collapse;
-            text-align: center;
-            font-family: monospace;
-            font-size: 0.9rem;
-        }
-
-        table.matrix-table td {
-            border: 1px solid var(--border);
-            padding: 0.6rem 0.3rem;
-            transition: background-color 0.2s;
-        }
-
-        table.matrix-table td:hover {
-            background-color: rgba(56, 189, 248, 0.2);
-        }
-
-        canvas {
-            background-color: #0f172a;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            width: 100%;
-            height: auto;
-        }
-
-        .signal-inputs {
-            display: flex;
-            gap: 0.5rem;
-            flex-wrap: wrap;
-            margin-bottom: 1rem;
-        }
-
-        .signal-inputs input {
-            width: 60px;
-            padding: 0.5rem;
-            background: #0f172a;
-            border: 1px solid var(--border);
-            color: white;
-            border-radius: 4px;
-            text-align: center;
         }
 
         footer {
@@ -171,95 +178,89 @@
 <body>
 
 <header>
-    <h1>La Transformada de Fourier como Cambio de Base</h1>
-    <p>Una perspectiva desde el Álgebra Lineal: de la multiplicación matricial \(O(N^2)\) a la factorización rápida \(O(N \log N)\).</p>
+    <h1>Filtrado y Reconstrucción de ECG mediante Cambio de Base</h1>
+    <p>Aplicación biomédica de la Transformada Rápida de Fourier (FFT): separando la actividad cardíaca del ruido eléctrico mediante Álgebra Lineal.</p>
 </header>
 
 <div class="container">
 
-    <!-- SECCIÓN 1: TEORÍA -->
+    <!-- SECCIÓN 1: EL PROBLEMA BIOMÉDICO -->
     <div class="card">
-        <h2>1. El Concepto Geométrico: Cambio de Base</h2>
+        <h2>1. El Problema Clínico y el Cambio de Base</h2>
         <p>
-            Una señal discreta de \(N\) muestras es simplemente un vector \(\mathbf{x} \in \mathbb{C}^N\) expresado en la <strong>base canónica</strong> (el dominio del tiempo), donde cada coordenada representa el valor en un instante \(n\).
+            Al registrar un <strong>Electrocardiograma (ECG)</strong>, los electrodos captan el vector \(\mathbf{x}_{\text{crudo}} \in \mathbb{R}^N\) (en este ejemplo, \(N = 64\) muestras de un latido). Sin embargo, la señal suele contaminarse con <strong>interferencia electromagnética de la red eléctrica (60 Hz)</strong> y temblor muscular, ocultando las ondas clínicas (P, complejo QRS y onda T).
         </p>
         <p>
-            Aplicar la Transformada Discreta de Fourier (DFT) es realizar un <strong>cambio de base</strong> hacia una base ortogonal de frecuencias puras (exponenciales complejas). Esta transformación lineal se representa mediante la matriz de Vandermonde \(F_N\):
+            En la <strong>base canónica (tiempo)</strong>, el latido y el ruido están sumados en cada instante \(n\), por lo que es imposible separarlos directamente. Al aplicar la matriz de Fourier \(F_N\), proyectamos el latido sobre una <strong>base ortogonal de frecuencias puras</strong>:
         </p>
-        <div class="math-block">
-            $$\mathbf{X} = F_N \mathbf{x}$$
-            $$\text{donde } (F_N)_{k,n} = \omega_N^{kn} = e^{-i \frac{2\pi}{N} kn}, \quad k, n \in \{0, 1, \dots, N-1\}$$
+
+        <div class="pipeline">
+            <div class="step-box">
+                <strong>1. Análisis (Cambio de Base)</strong>
+                \(\mathbf{X} = F_N \mathbf{x}_{\text{crudo}}\)<br>
+                <small style="color:var(--text-muted)">Pasamos de milivoltios en el tiempo a coeficientes de frecuencia.</small>
+            </div>
+            <div class="step-box">
+                <strong>2. Filtrado en la Nueva Base</strong>
+                \(\mathbf{X}_{\text{limpio}} = M_{\text{filtro}} \mathbf{X}\)<br>
+                <small style="color:var(--text-muted)">Anulamos los vectores base asociados a frecuencias altas (ruido).</small>
+            </div>
+            <div class="step-box">
+                <strong>3. Síntesis (Reconstrucción)</strong>
+                \(\mathbf{x}_{\text{rec}} = F_N^{-1} \mathbf{X}_{\text{limpio}} = \frac{1}{N} F_N^* \mathbf{X}_{\text{limpio}}\)<br>
+                <small style="color:var(--text-muted)">Volvemos a la base del tiempo usando la matriz conjugada transpuesta.</small>
+            </div>
         </div>
-        <p>
-            Cada fila \(k\) de \(F_N\) es un vector base de frecuencia \(k\). Multiplicar \(F_N\) por \(\mathbf{x}\) calcula el producto interno (proyección) de nuestra señal sobre cada frecuencia pura.
-        </p>
+
+        <div class="math-block">
+            $$\mathbf{x}_{\text{reconstruido}} = \underbrace{\frac{1}{N} F_N^*}_{\text{Base Inversa}} \cdot \underbrace{M_{\text{filtro}}}_{\text{Proyector}} \cdot \underbrace{F_N \mathbf{x}_{\text{crudo}}}_{\text{Coordenadas en Fourier}}$$
+        </div>
     </div>
 
-    <!-- SECCIÓN 2: EXPLORADOR DE LA MATRIZ -->
+    <!-- SECCIÓN 2: SIMULADOR BIOMÉDICO -->
     <div class="card">
-        <h2>2. Explorador de la Matriz de Fourier \(F_N\)</h2>
-        <p>Selecciona la dimensión \(N\) del espacio vectorial para visualizar los elementos \(\omega_N^{kn}\) de la matriz de cambio de base y la posición de las raíces de la unidad en el plano complejo.</p>
-        
+        <h2>2. Monitor de Reconstrucción ECG en Tiempo Real (\(N = 64\))</h2>
+        <p>
+            Experimenta contaminando el latido cardíaco con ruido de red eléctrica y ajusta la <strong>frecuencia de corte (\(k_{\max}\))</strong> para decidir cuántos vectores de la base de Fourier conservar al reconstruir la señal.
+        </p>
+
         <div class="controls">
-            <label for="dimensionSelect"><strong>Dimensión \(N\):</strong></label>
-            <select id="dimensionSelect" onchange="updateMatrixView()">
-                <option value="2">N = 2</option>
-                <option value="4" selected>N = 4</option>
-                <option value="8">N = 8</option>
-            </select>
+            <div class="control-group">
+                <label for="noiseSlider">Ruido Eléctrico (60 Hz + EMG): <span id="noiseVal" style="color:var(--ecg-noisy)">40%</span></label>
+                <input type="range" id="noiseSlider" min="0" max="100" value="40" oninput="updateSimulation()">
+            </div>
+            <div class="control-group">
+                <label for="cutoffSlider">Vectores Base Conservados (\(k \le k_{\max}\)): <span id="cutoffVal" style="color:var(--ecg-clean)">12 de 32</span></label>
+                <input type="range" id="cutoffSlider" min="1" max="32" value="12" oninput="updateSimulation()">
+            </div>
         </div>
 
+        <!-- GRÁFICA 1: SEÑAL EN EL TIEMPO -->
+        <div style="margin-bottom: 1.5rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                <h3 style="margin:0;">Dominio del Tiempo (Base Canónica)</h3>
+                <div>
+                    <span class="badge badge-noisy">--- Señal Cruda (Electrodo)</span>
+                    <span class="badge badge-clean">— Señal Reconstruida (F⁻¹ X_filtrado)</span>
+                </div>
+            </div>
+            <canvas id="ecgCanvas" width="900" height="260"></canvas>
+        </div>
+
+        <!-- GRÁFICA 2: ESPECTRO Y RECONSTRUCCIÓN POR ARMÓNICOS -->
         <div class="grid-2">
             <div>
-                <h3>Matriz \(F_N\) (Valores Complejos)</h3>
-                <div id="matrixContainer" style="overflow-x: auto;"></div>
-                <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem;">
-                    *Nota la simetría: \(F_N^T = F_N\) y sus columnas son ortogonales (\(F_N^* F_N = N \cdot I\)).
+                <h3>Coordenadas en la Base de Fourier \(|\mathbf{X}[k]|\)</h3>
+                <p style="font-size:0.85rem; color:var(--text-muted); margin-top:0;">
+                    Barras azules: frecuencias conservadas. Barras grises: frecuencias anuladas por el filtro. Observa el pico de ruido en \(k=24\).
                 </p>
+                <canvas id="spectrumCanvas" width="450" height="220"></canvas>
             </div>
             <div>
-                <h3>Raíces \(N\)-ésimas de la Unidad (\(\omega_N^k\))</h3>
-                <canvas id="unitCircleCanvas" width="350" height="350"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <!-- SECCIÓN 3: POR QUÉ ES RÁPIDA LA FFT -->
-    <div class="card">
-        <h2>3. El Secreto de la FFT: Factorización de Matrices Dispersas</h2>
-        <p>
-            Multiplicar directamente por la matriz densa \(F_N\) requiere \(N^2\) operaciones. La <strong>Transformada Rápida de Fourier (FFT)</strong> de Cooley-Tukey descubre que \(F_N\) no es una matriz cualquiera: se puede factorizar en el producto de matrices muy dispersas (llenas de ceros) separando índices pares e impares mediante una matriz de permutación \(P_N\):
-        </p>
-        <div class="math-block">
-            $$F_N = \begin{pmatrix} I_{N/2} & D_{N/2} \\ I_{N/2} & -D_{N/2} \end{pmatrix} \begin{pmatrix} F_{N/2} & 0 \\ 0 & F_{N/2} \end{pmatrix} P_N$$
-        </div>
-        <p>
-            Donde \(D_{N/2} = \text{diag}(1, \omega_N^1, \omega_N^2, \dots, \omega_N^{N/2 - 1})\) contiene los llamados <em>twiddle factors</em> (factores de giro). Al aplicar esto recursivamente, reducimos la complejidad de \(O(N^2)\) a \(O(N \log_2 N)\).
-        </p>
-    </div>
-
-    <!-- SECCIÓN 4: LABORATORIO DE CAMBIO DE BASE -->
-    <div class="card">
-        <h2>4. Laboratorio Interactivo: De Tiempo a Frecuencia (\(N=8\))</h2>
-        <p>Modifica las coordenadas del vector \(\mathbf{x}\) en la base del tiempo o elige una señal predefinida para observar sus nuevas coordenadas \(\mathbf{X} = F_8 \mathbf{x}\) en la base de frecuencias.</p>
-        
-        <div class="controls">
-            <button onclick="setPreset('impulse')">Impulso \(\delta[n]\)</button>
-            <button onclick="setPreset('dc')">Constante (DC)</button>
-            <button onclick="setPreset('cosine')">Coseno puro (\(k=1\))</button>
-            <button onclick="setPreset('mixed')">Suma de frecuencias</button>
-        </div>
-
-        <div class="signal-inputs" id="signalInputs"></div>
-
-        <div class="grid-2">
-            <div>
-                <h3>Base Canónica: Tiempo \(\mathbf{x}[n]\)</h3>
-                <canvas id="timeCanvas" width="400" height="220"></canvas>
-            </div>
-            <div>
-                <h3>Base de Fourier: Magnitud \(|\mathbf{X}[k]|\)</h3>
-                <canvas id="freqCanvas" width="400" height="220"></canvas>
+                <h3>Diagnóstico de la Reconstrucción</h3>
+                <div id="diagnosticBox" style="background:#090e1a; padding:1rem; border-radius:8px; border:1px solid var(--border); height: 188px; display:flex; flex-direction:column; justify-content:center;">
+                    <!-- Se llena dinámicamente con JS -->
+                </div>
             </div>
         </div>
     </div>
@@ -267,134 +268,35 @@
 </div>
 
 <footer>
-    <p>Proyecto educativo sobre Álgebra Lineal y Procesamiento de Señales • Alojado en GitHub Pages</p>
+    <p>Simulador Educativo de Procesamiento de Señales Biomédicas • Álgebra Lineal y FFT</p>
 </footer>
 
 <script>
-    // --- LÓGICA DE NÚMEROS COMPLEJOS Y FFT ---
-    function complex(re, im) {
-        return { re: re, im: im };
-    }
+    const N = 64; // Número de muestras del ciclo cardíaco
 
-    function formatComplex(c) {
-        const re = Math.abs(c.re) < 1e-10 ? 0 : Number(c.re.toFixed(2));
-        const im = Math.abs(c.im) < 1e-10 ? 0 : Number(c.im.toFixed(2));
-        if (im === 0) return `${re}`;
-        if (re === 0) return im === 1 ? 'i' : (im === -1 ? '-i' : `${im}i`);
-        const sign = im > 0 ? '+' : '-';
-        const absIm = Math.abs(im) === 1 ? 'i' : `${Math.abs(im)}i`;
-        return `${re}${sign}${absIm}`;
-    }
+    // Generar un latido ECG sintético realista (Ondas P, QRS, T) de N=64 muestras
+    function generateIdealECG() {
+        const ecg = [];
+        for (let n = 0; n < N; n++) {
+            const t = n / N; // Tiempo normalizado [0, 1]
+            // Onda P (despolarización auricular)
+            const pWave = 0.15 * Math.exp(-Math.pow((t - 0.18) / 0.035, 2));
+            // Complejo QRS (despolarización ventricular)
+            const qWave = -0.15 * Math.exp(-Math.pow((t - 0.36) / 0.012, 2));
+            const rWave = 1.00 * Math.exp(-Math.pow((t - 0.40) / 0.015, 2));
+            const sWave = -0.25 * Math.exp(-Math.pow((t - 0.44) / 0.014, 2));
+            // Onda T (repolarización ventricular)
+            const tWave = 0.30 * Math.exp(-Math.pow((t - 0.68) / 0.055, 2));
 
-    // --- SECCIÓN 2: MATRIZ Y CÍRCULO UNITARIO ---
-    function updateMatrixView() {
-        const N = parseInt(document.getElementById('dimensionSelect').value);
-        const container = document.getElementById('matrixContainer');
-        
-        let html = '<table class="matrix-table">';
-        for (let k = 0; k < N; k++) {
-            html += '<tr>';
-            for (let n = 0; n < N; n++) {
-                const angle = (-2 * Math.PI * k * n) / N;
-                const val = complex(Math.cos(angle), Math.sin(angle));
-                html += `<td title="k=${k}, n=${n}">${formatComplex(val)}</td>`;
-            }
-            html += '</tr>';
+            ecg.push(pWave + qWave + rWave + sWave + tWave);
         }
-        html += '</table>';
-        container.innerHTML = html;
-
-        drawUnitCircle(N);
+        return ecg;
     }
 
-    function drawUnitCircle(N) {
-        const canvas = document.getElementById('unitCircleCanvas');
-        const ctx = canvas.getContext('2d');
-        const w = canvas.width;
-        const h = canvas.height;
-        const cx = w / 2;
-        const cy = h / 2;
-        const r = 120;
+    const idealECG = generateIdealECG();
 
-        ctx.clearRect(0, 0, w, h);
-
-        // Ejes
-        ctx.strokeStyle = '#334155';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(20, cy); ctx.lineTo(w - 20, cy);
-        ctx.moveTo(cx, 20); ctx.lineTo(cx, h - 20);
-        ctx.stroke();
-
-        // Círculo
-        ctx.strokeStyle = '#818cf8';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(cx, cy, r, 0, 2 * Math.PI);
-        ctx.stroke();
-
-        // Raíces de la unidad
-        for (let k = 0; k < N; k++) {
-            const angle = (-2 * Math.PI * k) / N;
-            const x = cx + r * Math.cos(angle);
-            const y = cy - r * Math.sin(angle); // Y invertido en canvas
-
-            // Vector desde el origen
-            ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
-            ctx.beginPath();
-            ctx.moveTo(cx, cy);
-            ctx.lineTo(x, y);
-            ctx.stroke();
-
-            // Punto
-            ctx.fillStyle = '#38bdf8';
-            ctx.beginPath();
-            ctx.arc(x, y, 6, 0, 2 * Math.PI);
-            ctx.fill();
-
-            // Etiqueta
-            ctx.fillStyle = '#f8fafc';
-            ctx.font = '12px monospace';
-            const lx = cx + (r + 22) * Math.cos(angle) - 10;
-            const ly = cy - (r + 22) * Math.sin(angle) + 4;
-            ctx.fillText(`ω^${k}`, lx, ly);
-        }
-    }
-
-    // --- SECCIÓN 4: LABORATORIO N=8 ---
-    let signal = [1, 0.7, 0, -0.7, -1, -0.7, 0, 0.7];
-
-    function initInputs() {
-        const container = document.getElementById('signalInputs');
-        container.innerHTML = '';
-        for (let i = 0; i < 8; i++) {
-            const input = document.createElement('input');
-            input.type = 'number';
-            input.step = '0.1';
-            input.value = signal[i];
-            input.oninput = (e) => {
-                signal[i] = parseFloat(e.target.value) || 0;
-                computeAndDraw();
-            };
-            container.appendChild(input);
-        }
-    }
-
-    function setPreset(type) {
-        if (type === 'impulse') signal = [1, 0, 0, 0, 0, 0, 0, 0];
-        if (type === 'dc') signal = [1, 1, 1, 1, 1, 1, 1, 1];
-        if (type === 'cosine') {
-            signal = Array.from({length: 8}, (_, n) => Number(Math.cos((2 * Math.PI * n) / 8).toFixed(2)));
-        }
-        if (type === 'mixed') {
-            signal = Array.from({length: 8}, (_, n) => Number((Math.cos((2 * Math.PI * n) / 8) + 0.5 * Math.sin((2 * Math.PI * 3 * n) / 8)).toFixed(2)));
-        }
-        initInputs();
-        computeAndDraw();
-    }
-
-    function computeDFT(x) {
-        const N = x.length;
+    // Multiplicación directa por matriz de Fourier F_N: X = F_N * x
+    function dft(x) {
         const X = [];
         for (let k = 0; k < N; k++) {
             let re = 0, im = 0;
@@ -403,63 +305,180 @@
                 re += x[n] * Math.cos(angle);
                 im += x[n] * Math.sin(angle);
             }
-            X.push(Math.sqrt(re * re + im * im));
+            X.push({ re, im, mag: Math.sqrt(re * re + im * im) });
         }
         return X;
     }
 
-    function drawBarChart(canvasId, data, color, maxVal) {
-        const canvas = document.getElementById(canvasId);
+    // Reconstrucción mediante matriz inversa: x_rec = (1/N) * F_N^* * X
+    function idft(X) {
+        const xRec = [];
+        for (let n = 0; n < N; n++) {
+            let re = 0;
+            for (let k = 0; k < N; k++) {
+                const angle = (2 * Math.PI * k * n) / N; // Signo positivo (conjugado)
+                re += X[k].re * Math.cos(angle) - X[k].im * Math.sin(angle);
+            }
+            xRec.push(re / N);
+        }
+        return xRec;
+    }
+
+    function updateSimulation() {
+        const noiseLevel = parseInt(document.getElementById('noiseSlider').value) / 100;
+        const cutoff = parseInt(document.getElementById('cutoffSlider').value);
+
+        document.getElementById('noiseVal').innerText = `${Math.round(noiseLevel * 100)}%`;
+        document.getElementById('cutoffVal').innerText = `${cutoff} de ${N/2}`;
+
+        // 1. Contaminar la señal con interferencia de red eléctrica (k=24) y armónico (k=29)
+        const noisyECG = idealECG.map((val, n) => {
+            const powerLineNoise = noiseLevel * 0.45 * Math.sin((2 * Math.PI * 24 * n) / N);
+            const emgNoise = noiseLevel * 0.20 * Math.cos((2 * Math.PI * 29 * n) / N + 0.5);
+            return val + powerLineNoise + emgNoise;
+        });
+
+        // 2. Cambio de base: Tiempo -> Frecuencia (X = F_N * x)
+        const spectrum = dft(noisyECG);
+
+        // 3. Filtrado en la base de Fourier (manteniendo simetría hermítica para señal real)
+        const filteredSpectrum = spectrum.map((coef, k) => {
+            // Frecuencias bajas: k <= cutoff o su conjugado simétrico N - k <= cutoff
+            const freqIndex = k <= N / 2 ? k : N - k;
+            if (freqIndex <= cutoff) {
+                return coef;
+            } else {
+                return { re: 0, im: 0, mag: 0 };
+            }
+        });
+
+        // 4. Reconstrucción: Frecuencia -> Tiempo (x_rec = F_N^-1 * X_filtrado)
+        const reconstructedECG = idft(filteredSpectrum);
+
+        // Calcular error cuadrático medio (RMSE) respecto al ECG ideal
+        let mse = 0;
+        for (let n = 0; n < N; n++) {
+            mse += Math.pow(idealECG[n] - reconstructedECG[n], 2);
+        }
+        const rmse = Math.sqrt(mse / N);
+
+        drawECG(noisyECG, reconstructedECG);
+        drawSpectrum(spectrum, cutoff);
+        updateDiagnostics(cutoff, noiseLevel, rmse);
+    }
+
+    function drawECG(noisy, reconstructed) {
+        const canvas = document.getElementById('ecgCanvas');
         const ctx = canvas.getContext('2d');
         const w = canvas.width;
         const h = canvas.height;
-        const pad = 30;
+        const pad = 25;
 
         ctx.clearRect(0, 0, w, h);
 
-        // Eje horizontal cero
-        const zeroY = canvasId === 'timeCanvas' ? h / 2 : h - pad;
-        ctx.strokeStyle = '#334155';
+        // Cuadrícula tipo papel milimetrado médico
+        ctx.strokeStyle = '#162238';
+        ctx.lineWidth = 1;
+        for (let x = 0; x < w; x += 25) {
+            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+        }
+        for (let y = 0; y < h; y += 25) {
+            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+        }
+
+        const mapY = (val) => h * 0.72 - val * (h * 0.55);
+        const stepX = (w - 2 * pad) / (N - 1);
+
+        // Dibujar señal cruda (con ruido)
+        ctx.strokeStyle = 'rgba(244, 63, 94, 0.65)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 4]);
         ctx.beginPath();
-        ctx.moveTo(pad, zeroY);
-        ctx.lineTo(w - pad, zeroY);
-        ctx.stroke();
-
-        const barWidth = (w - 2 * pad) / data.length * 0.6;
-        const step = (w - 2 * pad) / data.length;
-
-        data.forEach((val, idx) => {
-            const x = pad + idx * step + (step - barWidth) / 2;
-            const scale = canvasId === 'timeCanvas' ? (h / 2 - pad) / maxVal : (h - 2 * pad) / maxVal;
-            const barH = val * scale;
-
-            ctx.fillStyle = color;
-            if (canvasId === 'timeCanvas') {
-                ctx.fillRect(x, val >= 0 ? zeroY - barH : zeroY, barWidth, Math.abs(barH));
-            } else {
-                ctx.fillRect(x, zeroY - barH, barWidth, barH);
-            }
-
-            // Etiqueta índice
-            ctx.fillStyle = '#94a3b8';
-            ctx.font = '12px monospace';
-            ctx.fillText(idx, x + barWidth / 2 - 4, h - 8);
+        noisy.forEach((val, n) => {
+            const x = pad + n * stepX;
+            const y = mapY(val);
+            if (n === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
         });
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Dibujar señal reconstruida (limpia)
+        ctx.strokeStyle = '#10b981';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        reconstructed.forEach((val, n) => {
+            const x = pad + n * stepX;
+            const y = mapY(val);
+            if (n === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
     }
 
-    function computeAndDraw() {
-        const magnitudes = computeDFT(signal);
-        const maxTime = Math.max(1.5, ...signal.map(Math.abs));
-        const maxFreq = Math.max(4, ...magnitudes);
+    function drawSpectrum(spectrum, cutoff) {
+        const canvas = document.getElementById('spectrumCanvas');
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width;
+        const h = canvas.height;
+        const pad = 25;
 
-        drawBarChart('timeCanvas', signal, '#38bdf8', maxTime);
-        drawBarChart('freqCanvas', magnitudes, '#818cf8', maxFreq);
+        ctx.clearRect(0, 0, w, h);
+
+        const halfN = N / 2; // Mostramos frecuencias positivas k = 0..31
+        const barW = (w - 2 * pad) / halfN * 0.7;
+        const step = (w - 2 * pad) / halfN;
+        const maxMag = 16;
+
+        for (let k = 0; k < halfN; k++) {
+            const mag = Math.min(spectrum[k].mag, maxMag);
+            const barH = (mag / maxMag) * (h - 2 * pad);
+            const x = pad + k * step;
+            const y = h - pad - barH;
+
+            // Color según si el vector base se conserva o se filtra
+            ctx.fillStyle = k <= cutoff ? '#38bdf8' : '#334155';
+            ctx.fillRect(x, y, barW, barH);
+
+            // Etiquetas clave
+            if (k === 0 || k === 12 || k === 24) {
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = '11px monospace';
+                ctx.fillText(`k=${k}`, x - 4, h - 8);
+            }
+        }
     }
 
-    // Inicializar vista
-    updateMatrixView();
-    initInputs();
-    computeAndDraw();
+    function updateDiagnostics(cutoff, noiseLevel, rmse) {
+        const box = document.getElementById('diagnosticBox');
+        let status = '';
+        let explanation = '';
+
+        if (cutoff < 5) {
+            status = '<span style="color:#f59e0b; font-weight:bold;">⚠️ Sub-reconstrucción (Pérdida clínica)</span>';
+            explanation = 'Usas muy pocos vectores de la base de Fourier. El complejo QRS pierde amplitud y se redondea porque las puntas agudas requieren armónicos medios (k = 6 a 14).';
+        } else if (cutoff >= 5 && cutoff <= 18) {
+            status = '<span style="color:#10b981; font-weight:bold;">✅ Reconstrucción Óptima</span>';
+            explanation = 'Con solo ~12 vectores base reconstruyes fielmente las ondas P, QRS y T, mientras eliminas por completo el ruido de 60 Hz ubicado en k = 24.';
+        } else if (cutoff >= 24 && noiseLevel > 0.1) {
+            status = '<span style="color:#f43f5e; font-weight:bold;">❌ Contaminación por Ruido de Red</span>';
+            explanation = 'Al incluir k ≥ 24 en la suma inversa, reincorporas el vector base correspondiente a la interferencia eléctrica (60 Hz), deformando el trazado.';
+        } else {
+            status = '<span style="color:#38bdf8; font-weight:bold;">ℹ️ Reconstrucción de Banda Ancha</span>';
+            explanation = 'Estás conservando casi toda la base original. Si no hay ruido presente, la reconstrucción es exacta.';
+        }
+
+        box.innerHTML = `
+            <div style="margin-bottom:0.6rem; font-size:1.05rem;">${status}</div>
+            <p style="margin:0 0 0.8rem 0; font-size:0.9rem; color:#cbd5e1;">${explanation}</p>
+            <div style="font-family:monospace; font-size:0.85rem; color:#94a3b8; border-top:1px solid #26334d; padding-top:0.5rem;">
+                Error de reconstrucción (RMSE): <strong style="color:#f8fafc;">${rmse.toFixed(4)} mV</strong> | Compresión: <strong style="color:#f8fafc;">${Math.round((1 - cutoff/32)*100)}%</strong>
+            </div>
+        `;
+    }
+
+    // Inicializar
+    updateSimulation();
 </script>
 
 </body>
